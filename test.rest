@@ -1,0 +1,35 @@
+### Variables
+@baseUrl = http://localhost:3000
+
+### Scenario 1: Successful Registration
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+  "userName": "johdaddsaddnddgoe",
+  "email": "jodsdadasdasghn@example.com",
+  "Password": "SecddddsadsaurePasgsword123"
+}
+
+###
+
+### Scenario 2: Fail due to Missing Fields
+POST {{baseUrl}}/register
+Content-Type: application/json
+
+{
+  "userName": "missingfields",
+  "email": ""
+}
+
+###
+
+### Scenario 3: Fail due to Duplicate User (Run this after Scenario 1)
+POST {{baseUrl}}/register
+Content-Type: application/json
+
+{
+  "userName": "johndoe",
+  "email": "differentemail@example.com",
+  "password": "AnotherPassword!"
+}
