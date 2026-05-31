@@ -20,6 +20,7 @@ pnpm-debug.log*
 # Testing
 coverage/
 .nyc_output/
+test.rest
 
 # IDEs and Editors
 .idea/

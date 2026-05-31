@@ -1,76 +1,56 @@
 import express, { Router, type Request, type Response } from "express";
-import { Interface } from "node:readline";
 const router = Router();
-import fs from "fs"
-import path from "path"
-const DATA_FILE = path.join(process.cwd(), "data.json");
 import bcrypt from "bcrypt"
-function getFileData(){
+import User from "../models/userSchema"
+
+router.post(`/register`,async (req,res)=>{
     try {
-        return JSON.parse(fs.readFileSync(DATA_FILE,"utf-8"))
-    } catch (err) {
-        console.log(err);
-    }
-}
-
-const saveFileData = (data:User[]) => {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-};
-  
-
-interface User {
-  userName: string;
-  email: string;
-  Password?: string; 
-}
-interface AuthRequestBody {
-  userName?: string;
-  email?: string;
-  Password?: string;
-}
-
-router.post(`/register`,async (req: Request, res: Response) => {
-    try {
-        const {userName,Password,email} = req.body
-        if(!userName || !Password || !email){
-            return res.status(400).send(`Missing required fields`)
+        const {userName,password,email} = req.body
+        if(!userName || !password || !email){
+            return res.status(400).send(`Required info isn't specified`)
         }
-        const users: User[] = getFileData();       
-        const userExists = users.some((u) => u.userName === userName || u.email === email)            
-        if (userExists) {
-            return res.status(400).send("User already exists")
+        const user = await User.findOne({
+            $or: [
+                { userName: userName },
+                { email: email }
+            ]
+        });
+        if(user){
+            return res.status(400).send(`User already exists`)
         }
-        
-        const hashedPassword =await bcrypt.hash(Password,10)
-        const newUser:any = {
+        const hashedPassword =await bcrypt.hash(password,10)
+        const newUser={
             userName,
             Password:hashedPassword,
             email,
         }
-        users.push(newUser);
-        saveFileData(users)
-        return res.status(201).send("User registered successfully");
+        await User.create(newUser)
+        res.status(201).send(`User created succesfully`)
+    } catch (err) {
+        console.log(err);
+        res.status(500).send(`Internal serrver error`)
+    }
+})
+router.post(`/login`,async(req,res)=>{
+    try {
+        const {userName,password,email} = req.body
+        const user = await User.findOne({
+            $or: [
+                { userName: userName },
+                { email: email }
+            ]
+        });
+        if(!user){
+            return res.status(400).send(`Username or password is incorrect`)
+        }
+        const isMatch = await bcrypt.compare(password,user.password as string)
+        if(!isMatch){
+            return res.status(400).send(`Username or password is incorrect`)
+        }
+        res.status(200).send(`User logged in succesfully`)
     } catch (err) {
         console.log(err);
         res.status(500).send(`Internal server error`)
     }
-});
-router.post(`/login`,async(req:Request,res:Response)=>{
-    const {userName,Password,email} = req.body
-    if(!userName || !Password || !email){
-        return res.status(400).send(`Missing required fields`)
-    }
-    const users: User[] = getFileData(); 
-    const user = users.find((u) =>
-            userName ? u.userName === userName : u.email === email
-    );
-    if (!user) {
-        return res.status(400).send("Incorrect username or password")
-    }
-    const isMathc = await bcrypt.compare(Password,user.Password)
-    if(!isMathc){
-        res.status(400).send(`Incorrect username or password`)
-    }
-    res.status(200).send(`User logged In succesfully`)
 })
 export default router;
