@@ -2,7 +2,7 @@ import express, { Router, type Request, type Response } from "express";
 const router = Router();
 import bcrypt from "bcrypt"
 import User from "../models/userSchema"
-
+import {jwtSign} from "../utils/jwt"
 router.post(`/register`,async (req,res)=>{
     try {
         const {userName,password,email} = req.body
@@ -21,7 +21,7 @@ router.post(`/register`,async (req,res)=>{
         const hashedPassword =await bcrypt.hash(password,10)
         const newUser={
             userName,
-            Password:hashedPassword,
+            password:hashedPassword,
             email,
         }
         await User.create(newUser)
@@ -47,7 +47,11 @@ router.post(`/login`,async(req,res)=>{
         if(!isMatch){
             return res.status(400).send(`Username or password is incorrect`)
         }
-        res.status(200).send(`User logged in succesfully`)
+        const { AccessToken, RefreshToken } = await jwtSign(user._id.toString());
+        res.status(200).json({message:"User logged in succesfully",
+            AccessToken,
+            RefreshToken
+        })
     } catch (err) {
         console.log(err);
         res.status(500).send(`Internal server error`)

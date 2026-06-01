@@ -3,9 +3,12 @@ import router from "./routes/authRoutes";
 import express from "express"
 const app = express()
 import mongoose, { mongo } from "mongoose"
+import authRouter from "./routes/authRoutes";
+import postRouter from "./routes/postRoutes"
 app.use(express.json())
 app.use(router)
-
+app.use(authRouter)
+app.use(postRouter)
 
 async function connect() {
     try{
