@@ -3,33 +3,30 @@ const router = Router();
 import User from "../models/userSchema";
 import { authenticateToken } from "../utils/jwt";
 import Post from "../models/postSchema";
+import {
+  addPost,
+  getUserPosts,
+  listPosts,
+  likePost,
+  unlikePost,
+  deletePost,
+} from "../utils/postService";
 router.post(
   "/:_id/posts",
   authenticateToken,
   async (req: Request, res: Response) => {
     try {
+      if (typeof req.params._id !== "string") {
+        return res.status(400).send(`Invalid user id`);
+      }
       const userId = req.params._id;
       const { title, description, pictures } = req.body;
-      const post = new Post({
-        title,
-        description,
-        pictures,
-        author: userId,
-      });
-
-      await post.save();
-
-      const user = await User.findByIdAndUpdate(userId, {
-        $push: {
-          posts: post._id,
-        },
-      });
-      if (!user) {
-        await Post.findByIdAndDelete(post._id);
-        return res.status(400).send(`User doesn't exists`);
-      }
+      const post = await addPost(userId, { title, description, pictures });
       return res.status(201).json({ message: `Post added successfully`, post });
     } catch (err) {
+      if ((err as any)?.code === "USER_NOT_FOUND") {
+        return res.status(400).send(`User doesn't exists`);
+      }
       res.status(500).send(`Internal server error`);
     }
   },
@@ -37,22 +34,22 @@ router.post(
 
 router.get("/:_id/posts", async (req: Request, res: Response) => {
   try {
-    const userId = req.params._id;
-    const UserPosts = await User.findById(userId).populate("posts");
-    if (!UserPosts) {
-      return res.send(`User doesn't exists`);
+    if (typeof req.params._id !== "string") {
+      return res.status(400).send(`Invalid user id`);
     }
-    res.status(200).json(UserPosts.posts);
+    const userId = req.params._id;
+    const posts = await getUserPosts(userId);
+    res.status(200).json(posts);
   } catch (err) {
+    if ((err as any)?.code === "USER_NOT_FOUND") {
+      return res.status(400).send(`User doesn't exists`);
+    }
     return res.status(500).json({ message: "Server error", err });
   }
 });
 router.get("/posts", async (req: Request, res: Response) => {
   try {
-    const posts = await Post.find({})
-      .populate("author", "userName -_id")
-      .select("title description author")
-      .lean();
+    const posts = await listPosts();
     res.status(200).send(posts);
   } catch (err) {
     return res.status(500).json({ message: "Server error", err });
@@ -63,33 +60,26 @@ router.post(
   authenticateToken,
   async (req: Request, res: Response) => {
     try {
+      if (
+        typeof req.params._postId !== "string" ||
+        typeof req.params._id !== "string"
+      ) {
+        return res.status(400).send(`Invalid id(s)`);
+      }
       const postId = req.params._postId;
       const userId = req.params._id;
 
-      const user = await User.findOneAndUpdate(
-        { _id: userId, likedPosts: { $ne: postId } } as any,
-        { $push: { likedPosts: postId } },
-        { returnDocument: "after" },
-      );
-
-      if (!user) {
+      const post = await likePost(postId, userId);
+      return res.status(200).json(post);
+    } catch (err) {
+      if ((err as any)?.code === "ALREADY_LIKED") {
         return res
           .status(400)
           .json({ message: "You have already liked this post." });
       }
-
-      const post = await Post.findByIdAndUpdate(
-        postId,
-        { $inc: { likes: 1 } },
-        { returnDocument: "after" },
-      );
-
-      if (!post) {
+      if ((err as any)?.code === "POST_NOT_FOUND") {
         return res.status(404).json({ message: "Post not found." });
       }
-
-      return res.status(200).json(post);
-    } catch (err) {
       return res.status(500).json({ message: "Server error", err });
     }
   },
@@ -100,33 +90,48 @@ router.post(
   authenticateToken,
   async (req: Request, res: Response) => {
     try {
+      if (
+        typeof req.params._postId !== "string" ||typeof req.params._id !== "string") {
+        return res.status(400).send(`Invalid id(s)`);
+      }
       const postId = req.params._postId;
       const userId = req.params._id;
 
-      const user = await User.findOneAndUpdate(
-        { _id: userId, likedPosts: { $in: [postId] } } as any,
-        { $pull: { likedPosts: postId } },
-        { returnDocument: "after" },
-      );
-      if (!user) {
+      const post = await unlikePost(postId, userId);
+      return res.status(200).json(post);
+    } catch (err) {
+      if ((err as any)?.code === "NOT_LIKED") {
         return res
           .status(400)
           .json({ message: "You haven't liked this post yet." });
       }
-      const post = await Post.findByIdAndUpdate(
-        postId,
-        { $inc: { likes: -1 } },
-        { returnDocument: "after" },
-      );
-      if (!post) {
+      if ((err as any)?.code === "POST_NOT_FOUND") {
         return res.status(404).json({ message: "Post not found." });
       }
-
-      return res.status(200).json(post);
-    } catch (err) {
       return res.status(500).json({ message: "Server error", err });
     }
   },
 );
+
+router.delete("/:_id/posts/:postId", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    if (typeof req.params._id !== "string" || typeof req.params.postId !== "string") {
+      return res.status(400).send(`Invalid id(s)`);
+    }
+    const userId = req.params._id;
+    const postId = req.params.postId;
+
+    await deletePost(postId, userId)
+      .then(() => res.status(200).json({ message: "Post deleted successfully" }))
+      .catch((err) => {
+        if ((err as any)?.code === "POST_NOT_FOUND_OR_UNAUTHORIZED") {
+          return res.status(404).json({ message: "Post not found or unauthorized." });
+        }
+        return res.status(500).json({ message: "Server error", err });
+      });
+  } catch (err) {
+    return res.status(500).json({ message: "Server error", err });
+  }
+});
 
 export default router;
