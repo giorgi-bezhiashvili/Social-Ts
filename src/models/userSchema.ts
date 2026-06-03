@@ -1,37 +1,25 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, Types } from "mongoose";
 
-interface IPost {
-  title: string;
-  description: string;
-  pictures: string[]; 
-}
-
+import { postSchema } from "./postSchema";
+import type { IPost } from "./postSchema";
 export interface IUser extends Document {
   userName: string;
   password?: string; 
   email: string;
-  posts: IPost[];
+  posts: Types.DocumentArray<IPost & Types.Subdocument>; 
   googleId?: string;
 }
 
 const userSchema = new Schema<IUser>({
   userName: { type: String, required: true },
-  
   password: { type: String }, 
-  
   email: { type: String, required: true, unique: true },
-  
   googleId: { 
     type: String, 
     unique: true, 
     sparse: true 
   },
-  
-  posts: [{
-    title: { type: String, required: true },
-    description: { type: String, required: true },
-    pictures: [{ type: String }] 
-  }],
+  posts: [postSchema], 
 });
 
 const User = mongoose.model<IUser>("User", userSchema);
