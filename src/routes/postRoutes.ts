@@ -55,19 +55,43 @@ router.get("/posts", async (req: Request, res: Response) => {
         return res.status(500).json({ message: "Server error", err });
     }
 })
-router.post("/like/:_postId", authenticateToken, async (req: Request, res: Response) => {
-    try {
-        const postId = req.params._postId
-        const post = await Post.findByIdAndUpdate(postId, { $inc: { likes: 1 } }, { returnDocument: 'after' })
-        res.send(post)
+router.post("/like/:_postId/:_id", authenticateToken, async (req: Request, res: Response) => {
+    try {        
+        const postId = req.params._postId;
+        const userId = req.params._id;
+
+        const user = await User.findOneAndUpdate(
+            { _id: userId, likedPosts: { $ne: postId } } as any, 
+            { $push: { likedPosts: postId } },
+            { returnDocument: 'after' }
+        );
+
+        if (!user) {
+            return res.status(400).json({ message: "You have already liked this post." });
+        }
+
+        const post = await Post.findByIdAndUpdate(
+            postId,
+            { $inc: { likes: 1 } },
+            { returnDocument: 'after' }
+        );
+
+        if (!post) {
+            return res.status(404).json({ message: "Post not found." });
+        }
+
+        return res.status(200).json(post);
+
     } catch (err) {
         return res.status(500).json({ message: "Server error", err });
     }
-})
+});
+
 router.post("/downlike/:_postId", authenticateToken, async (req: Request, res: Response) => {
     try {
         const postId = req.params._postId
         const post = await Post.findByIdAndUpdate(postId, { $inc: { likes: -1 } }, { returnDocument: 'after' })
+
         res.send(post)
     } catch (err) {
         return res.status(500).json({ message: "Server error", err });
