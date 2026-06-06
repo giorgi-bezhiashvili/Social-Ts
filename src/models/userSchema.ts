@@ -7,6 +7,8 @@ export interface IUser extends Document {
   password?: string;
   email: string;
   likedPosts: string[];
+  profilePicture?: string;
+  description?: string;
   posts: Types.DocumentArray<IPost & Types.Subdocument>;
   googleId?: string;
 }
@@ -21,6 +23,8 @@ const userSchema = new Schema<IUser>({
     sparse: true,
   },
   likedPosts: [{ type: String, default: [] }],
+  profilePicture: { type: String },
+  description: { type: String },
   posts: [postSchema],
 });
 
