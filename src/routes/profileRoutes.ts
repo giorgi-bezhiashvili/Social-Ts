@@ -3,7 +3,6 @@ const router = Router();
 import multer from "multer";
 import { authenticateToken } from "../utils/jwt";
 import User from "../models/userSchema";
-import { getUserPosts } from "../utils/postService";
 import path from  "path"
 import fs from "fs"; 
 
@@ -79,5 +78,22 @@ router.get("/:id", async (req, res) => {
         return res.status(500).send("Internal server error: " + err.message);
     }
 });
+router.post("/:id/description", authenticateToken, async (req: Request, res: Response) => {
+    try {
+        const userId = req.params.id;
+        const { description } = req.body;
 
+        const user = await User.findByIdAndUpdate(
+            userId,
+            {description},
+            { returnDocument: 'after' }
+        );
+        if (!user) {
+            return res.status(404).send("User doesn't exist");
+        }
+        res.status(200).json(user);
+    } catch (err: any) {
+        return res.status(500).send("Internal server error: " + err.message);
+    }
+});
 export default router
