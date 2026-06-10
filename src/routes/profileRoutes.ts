@@ -40,14 +40,24 @@ router.post("/:id/profilePicture", authenticateToken, upload.single('profilePic'
         const profilePicturePath = `/uploads/${req.file.filename}`;
         const profilePictureUrl = `${req.protocol}://${req.get("host")}${profilePicturePath}`;
 
-        const user = await User.findByIdAndUpdate(
-            userId,
-            { profilePicture: profilePicturePath },
-            { returnDocument: 'after' }
-        );
+        const user = await User.findById(userId);
 
         if (!user) {
             return res.status(404).send("User doesn't exist");
+        }
+        const oldProfilePicturePath = user.profilePicture as string; 
+        user.profilePicture = profilePicturePath
+        await user.save();
+        const fullPath = path.join(import.meta.dirname, "..", "..", oldProfilePicturePath);
+
+        if (oldProfilePicturePath) {
+            fs.unlink(path.join(fullPath), (err) => {
+                if (err) {
+                    console.error("Error deleting old profile picture:", err);
+                } else {
+                    console.log("Old profile picture deleted successfully.");
+                }
+            });
         }
 
         return res.status(200).json({
