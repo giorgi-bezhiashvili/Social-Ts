@@ -20,7 +20,7 @@ export async function jwtSign(userId: string) {
   }
 
   const payLoad = {
-    id: userInstance._id.toString(),
+    _id: userInstance._id.toString(),
     email: userInstance.email.toString(),
     userName: userInstance.userName.toString(),
   };

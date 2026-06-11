@@ -35,7 +35,6 @@ router.post("/:id/profilePicture", authenticateToken, upload.single('profilePic'
             });
         }
 
-        console.log(" File successfully parsed by Multer:", req.file);
 
         const profilePicturePath = `/uploads/${req.file.filename}`;
         const profilePictureUrl = `${req.protocol}://${req.get("host")}${profilePicturePath}`;
@@ -46,6 +45,9 @@ router.post("/:id/profilePicture", authenticateToken, upload.single('profilePic'
             return res.status(404).send("User doesn't exist");
         }
         const oldProfilePicturePath = user.profilePicture as string; 
+        if(!oldProfilePicturePath) {
+            console.log("No existing profile picture to delete for user:", userId);
+        }
         user.profilePicture = profilePicturePath
         await user.save();
         const fullPath = path.join(import.meta.dirname, "..", "..", oldProfilePicturePath);

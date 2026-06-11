@@ -7,13 +7,14 @@ import mongoose, { mongo } from "mongoose";
 import authRouter from "./routes/authRoutes";
 import postRouter from "./routes/postRoutes";
 import profileRouter from "./routes/profileRoutes"
+import commentRouter from "./routes/commentRoutes";
 app.use(express.json());
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use(router);
 app.use(authRouter);
 app.use(postRouter);
 app.use(profileRouter)
-
+app.use(commentRouter);
 async function connect() {
   try {
     await mongoose.connect(process.env.MONGO_URI as string);
