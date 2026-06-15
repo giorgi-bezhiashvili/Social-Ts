@@ -3,6 +3,7 @@ const router = Router();
 import User from "../models/userSchema";
 import { authenticateToken } from "../utils/jwt";
 import Post from "../models/postSchema";
+import Notification from "../models/notificationScema";
 import {
   addPost,
   getUserPosts,
@@ -11,6 +12,7 @@ import {
   unlikePost,
   deletePost,
 } from "../utils/postService";
+//posting a post
 router.post(
   "/:_id/posts",
   authenticateToken,
@@ -31,7 +33,7 @@ router.post(
     }
   },
 );
-
+//getting posts of a user
 router.get("/:_id/posts", async (req: Request, res: Response) => {
   try {
     if (typeof req.params._id !== "string") {
@@ -47,6 +49,7 @@ router.get("/:_id/posts", async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Server error", err });
   }
 });
+//getting all posts
 router.get("/posts", async (req: Request, res: Response) => {
   try {
     const posts = await listPosts();
@@ -55,6 +58,7 @@ router.get("/posts", async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Server error", err });
   }
 });
+//like a post
 router.post(
   "/like/:_postId/:_id",
   authenticateToken,
@@ -70,6 +74,14 @@ router.post(
       const userId = req.params._id;
 
       const post = await likePost(postId, userId);
+      const notification = new Notification({
+        recipient: post.author,
+        sender: userId,
+        message:"liked your post",
+        type: "like",
+        post: postId,
+      });
+      await notification.save();
       return res.status(200).json(post);
     } catch (err) {
       if ((err as any)?.code === "ALREADY_LIKED") {
@@ -84,7 +96,7 @@ router.post(
     }
   },
 );
-
+//unlike a post
 router.post(
   "/downlike/:_postId/:_id",
   authenticateToken,
@@ -112,7 +124,7 @@ router.post(
     }
   },
 );
-
+//delete a post
 router.delete("/:_id/posts/:postId", authenticateToken, async (req: Request, res: Response) => {
   try {
     if (typeof req.params._id !== "string" || typeof req.params.postId !== "string") {

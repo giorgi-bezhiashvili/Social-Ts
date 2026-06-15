@@ -4,7 +4,7 @@ const router = Router();
 import User from "../models/userSchema";
 import { authenticateToken } from "../utils/jwt";
 import Post from "../models/postSchema";
-
+import Notification from "../models/notificationScema";
 router.post("/posts/:postId/comment", authenticateToken, async (req: Request, res: Response) => {
   try {
     const postId = req.params.postId;
@@ -26,6 +26,14 @@ router.post("/posts/:postId/comment", authenticateToken, async (req: Request, re
     if (!post) {
       return res.status(404).json({ message: "Post not found" });
     }
+    const notification = new Notification({
+      recipient: post.author,
+      sender: userId,
+      message: "commented on your post",
+      type: "comment",
+      post: postId,
+    });
+    await notification.save();
     return res.status(200).json({ message: "Comment added successfully", post });
   } catch (err) {
     return res.status(500).json({ message: "Server error", error: err });
