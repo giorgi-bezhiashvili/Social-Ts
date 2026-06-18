@@ -34,6 +34,20 @@ router.post("/posts/:postId/comment", authenticateToken, async (req: Request, re
       post: postId,
     });
     await notification.save();
+
+    try {
+      const io = require("../utils/socket").getIo();
+      io.to(String(post.author)).emit("notification", {
+        recipient: String(post.author),
+        sender: userId,
+        type: "comment",
+        post: postId,
+        message: "commented on your post",
+      });
+    } catch (e) {
+      // ignore if socket not initialized
+    }
+
     return res.status(200).json({ message: "Comment added successfully", post });
   } catch (err) {
     return res.status(500).json({ message: "Server error", error: err });

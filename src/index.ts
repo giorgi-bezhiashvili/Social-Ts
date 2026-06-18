@@ -37,7 +37,14 @@ async function connect() {
   }
 }
 
-app.listen(3000, () => {
+import http from "http";
+import { initSocket } from "./utils/socket";
+
+const server = http.createServer(app);
+
+initSocket(server);
+
+server.listen(3000, () => {
   console.log(`Server Is running on port 3000`);
   connect();
 });

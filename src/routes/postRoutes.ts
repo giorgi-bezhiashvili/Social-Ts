@@ -82,6 +82,19 @@ router.post(
         post: postId,
       });
       await notification.save();
+
+      try {
+        const io = require("../utils/socket").getIo();
+        io.to(String(post.author)).emit("notification", {
+          recipient: String(post.author),
+          sender: userId,
+          type: "like",
+          post: postId,
+          message: "liked your post",
+        });
+      } catch (e) {
+        // socket may not be initialized; ignore
+      }
       return res.status(200).json(post);
     } catch (err) {
       if ((err as any)?.code === "ALREADY_LIKED") {
