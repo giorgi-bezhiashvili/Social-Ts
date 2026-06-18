@@ -8,7 +8,20 @@ import authRouter from "./routes/authRoutes";
 import postRouter from "./routes/postRoutes";
 import profileRouter from "./routes/profileRoutes"
 import commentRouter from "./routes/commentRoutes";
+import helmet from "helmet";
+import mongosanitize from "express-mongo-sanitize";
+import { xss } from 'express-xss-sanitizer'
+import cookieParser from 'cookie-parser';
+app.use(mongosanitize());
+
+app.use(xss({ 
+  maxDepth: 50 
+} as any));
+
 app.use(express.json());
+app.use(cookieParser());
+app.use(helmet.hsts({ maxAge: 31536000, includeSubDomains: true }))
+app.use(helmet.contentSecurityPolicy({ directives: { defaultSrc: ["'self'"]} }));
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use(router);
 app.use(authRouter);

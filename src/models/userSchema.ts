@@ -9,6 +9,7 @@ export interface IUser extends Document {
   description?: string;
   googleId?: string;
   posts?: IPost[];
+  refreshTokens?: string[];
 }
 
 const userSchema = new Schema<IUser>({
@@ -19,6 +20,7 @@ const userSchema = new Schema<IUser>({
   likedPosts: [{ type: Schema.Types.ObjectId, ref: "Post" }],
   profilePicture: { type: String },
   description: { type: String },
+  refreshTokens: [{ type: String }],
 }, {
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
