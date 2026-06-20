@@ -103,10 +103,7 @@ router.get(
         path: "/auth",
       });
 
-      res.status(200).json({
-        message: "User logged in via Google successfully",
-        AccessToken,
-      });
+      res.cookie(AccessToken,RefreshToken)
     } catch (err) {
       console.error(err);
       res.status(500).send("Internal server error during token generation");
@@ -182,10 +179,7 @@ router.post("/login", limiter, async (req: Request, res: Response) => {
       path: "/auth",
     });
 
-    res.status(200).json({
-      message: "User logged in successfully",
-      AccessToken,
-    });
+    res.cookie(AccessToken,RefreshToken)
   } catch (err) {
     console.error(err);
     res.status(500).send(`Internal server error`);

@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
-import type { IPost } from "./postSchema"
+import type { IPost } from "./postSchema";
 export interface IUser extends Document {
   userName: string;
   password?: string;
@@ -8,8 +8,12 @@ export interface IUser extends Document {
   profilePicture?: string;
   description?: string;
   googleId?: string;
-  posts?: IPost[];
+  posts?: IPost[]; 
   refreshTokens?: string[];
+  followerCount: number; 
+  followersList: Types.ObjectId[];
+  following: number;
+  followingsList: Types.ObjectId[];
 }
 
 const userSchema = new Schema<IUser>({
@@ -21,15 +25,21 @@ const userSchema = new Schema<IUser>({
   profilePicture: { type: String },
   description: { type: String },
   refreshTokens: [{ type: String }],
+  followerCount: { type: Number, default: 0 },
+  followersList: [{ type: Schema.Types.ObjectId, ref: "User" }],
+  following: { type: Number, default: 0 },
+  followingsList: [{ type: Schema.Types.ObjectId, ref: "User" }] 
 }, {
+  timestamps: true, 
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
 });
 
+// Virtual populate for posts
 userSchema.virtual("posts", {
   ref: "Post",
   localField: "_id",
-  foreignField: "author"
+  foreignField: "author" 
 });
 
 const User = mongoose.model<IUser>("User", userSchema);
