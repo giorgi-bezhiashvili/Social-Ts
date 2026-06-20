@@ -85,7 +85,7 @@ social-ts/
 │   │   └── socket.ts            # Socket.io server init + room management
 │   └── types/
 │       └── express.d.ts         # Express type augmentations
-├── test.rest                    # REST Client requests for manual API testing
+
 ├── tsconfig.json
 └── package.json
 ```
@@ -103,7 +103,7 @@ social-ts/
 ### Installation
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/giorgi-bezhiashvili/Social-Ts.git
 cd social-ts
 npm install
 ```
