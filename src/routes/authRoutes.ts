@@ -8,18 +8,17 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth2";
 import type { Profile } from "passport";
 import type { VerifyCallback } from "passport-google-oauth2";
 import { jwtSign, rotateRefreshToken, revokeRefreshToken } from "../utils/jwt";
-import { rateLimit } from 'express-rate-limit'
-
-const limiter = rateLimit({
-	windowMs: 15 * 60 * 1000, // 15 minutes
-	limit: 10, // Limit each IP to 100 requests per `window` (here, per 15 minutes).
-	standardHeaders: 'draft-8', // draft-6: `RateLimit-*` headers; draft-7 & draft-8: combined `RateLimit` header
-	legacyHeaders: false, // Disable the `X-RateLimit-*` headers.
-	ipv6Subnet: 56, // Set to 60 or 64 to be less aggressive, or 52 or 48 to be more aggressive
-	// store: ... , // Redis, Memcached, etc. See below.
-})
+import { rateLimit } from 'express-rate-limit';
 
 dotenv.config();
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  limit: 110, 
+  standardHeaders: 'draft-8', 
+  legacyHeaders: false, 
+  ipv6Subnet: 56, 
+});
 
 const router = Router();
 
@@ -30,7 +29,6 @@ passport.use(
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
       callbackURL: "http://localhost:3000/google/callback",
       passReqToCallback: true,
-
       scope: ["email", "profile"],
     },
     async function (
@@ -65,10 +63,7 @@ passport.use(
   ),
 );
 
-passport.serializeUser((user: Express.User, done) => {
-  const customUser = user as IUser;
-  done(null, customUser._id.toString());
-});
+// Note: passport.serializeUser was removed because session: false is used below.
 
 router.get(
   "/auth/google",
@@ -94,7 +89,7 @@ router.get(
 
       const { AccessToken, RefreshToken } = await jwtSign(user._id.toString());
 
-      // set refresh token in httpOnly cookie
+      // Set refresh token in httpOnly cookie
       res.cookie("refreshToken", RefreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -103,17 +98,19 @@ router.get(
         path: "/auth",
       });
 
-      res.cookie(AccessToken,RefreshToken)
+      // FIXED: Sending access token back via JSON response (standard for SPA architecture)
+      return res.status(200).json({ AccessToken });
     } catch (err) {
       console.error(err);
-      res.status(500).send("Internal server error during token generation");
+      return res.status(500).send("Internal server error during token generation");
     }
   },
 );
 
 router.get("/", (req: Request, res: Response) => {
+  // FIXED: Changed https to http to match your development local port
   res.send(
-    `<a href="https://localhost:3000/auth/google">Authenticate with Google</a>`,
+    `<a href="http://localhost:3000/auth/google">Authenticate with Google</a>`,
   );
 });
 
@@ -137,7 +134,7 @@ router.post("/register", limiter, async (req: Request, res: Response) => {
       posts: [],
     };
     const created = await User.create(newUser);
-    // sign tokens and set refresh cookie
+    
     const { AccessToken, RefreshToken } = await jwtSign(created._id.toString());
     res.cookie("refreshToken", RefreshToken, {
       httpOnly: true,
@@ -146,10 +143,10 @@ router.post("/register", limiter, async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: "/auth",
     });
-    res.status(201).json({ message: `User created successfully`, AccessToken });
+    return res.status(201).json({ message: `User created successfully`, AccessToken });
   } catch (err) {
     console.error(err);
-    res.status(500).send(`Internal server error`);
+    return res.status(500).send(`Internal server error`);
   }
 });
 
@@ -179,14 +176,14 @@ router.post("/login", limiter, async (req: Request, res: Response) => {
       path: "/auth",
     });
 
-    res.cookie(AccessToken,RefreshToken)
+    // FIXED: Return a proper JSON response so the client receives the AccessToken
+    return res.status(200).json({ message: "Login successful", AccessToken });
   } catch (err) {
     console.error(err);
-    res.status(500).send(`Internal server error`);
+    return res.status(500).send(`Internal server error`);
   }
 });
 
-// refresh token rotation endpoint
 router.post("/auth/refresh", async (req: Request, res: Response) => {
   try {
     const oldToken = req.cookies?.refreshToken;
@@ -194,7 +191,6 @@ router.post("/auth/refresh", async (req: Request, res: Response) => {
 
     const { AccessToken, RefreshToken } = await rotateRefreshToken(oldToken);
 
-    // set new refresh token cookie
     res.cookie("refreshToken", RefreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -203,14 +199,13 @@ router.post("/auth/refresh", async (req: Request, res: Response) => {
       path: "/auth",
     });
 
-    res.status(200).json({ AccessToken });
+    return res.status(200).json({ AccessToken });
   } catch (err) {
     console.error(err);
-    res.status(401).send("Invalid refresh token");
+    return res.status(401).send("Invalid refresh token");
   }
 });
 
-// logout / revoke
 router.post("/auth/logout", async (req: Request, res: Response) => {
   try {
     const oldToken = req.cookies?.refreshToken;
@@ -218,10 +213,10 @@ router.post("/auth/logout", async (req: Request, res: Response) => {
       await revokeRefreshToken(oldToken);
     }
     res.clearCookie("refreshToken", { path: "/auth" });
-    res.sendStatus(204);
+    return res.sendStatus(204);
   } catch (err) {
     console.error(err);
-    res.sendStatus(500);
+    return res.sendStatus(500);
   }
 });
 
