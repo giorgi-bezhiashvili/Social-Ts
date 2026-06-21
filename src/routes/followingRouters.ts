@@ -42,9 +42,21 @@ router.post("/follow/:_id",authenticateToken,async(req:Request,res:Response)=>{
                 $inc:{following:1}
             }
         )
+
         if (!targetUser) {
             return res.status(400).send("You already follow this user or user does not exist");
         }
+        try {
+        const io = require("../utils/socket").getIo();
+        io.to(String(targetUserId)).emit("notification", {
+            recipient: String(targetUserId),
+            sender: currentUserId,
+            type: "follow",
+            message: "Followed you",
+      });
+    } catch (e) {
+      // ignore if socket not initialized
+    }
         return res.status(200).json({ success: true, user: targetUser });
 
     } catch (err) {
