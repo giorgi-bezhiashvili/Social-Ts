@@ -92,16 +92,7 @@ router.delete("/unfollow/:id", authenticateToken, async (req: Request, res: Resp
         if (!targetUser) {
             return res.status(400).send("You already follow this user or user does not exist");
         }
-        try {
-            io.to(String(targetUserId)).emit("notification", {
-                recipient: String(targetUserId),
-                sender: currentUserId,
-                type: "follow",
-                message: "Followed you",
-            });
-        } catch (e) {
-            // ignore if socket not initialized
-        }
+       
         res.status(200).send(`Followed succesfully`)
     } catch (err) {
         res.status(500).send(`Error`)
