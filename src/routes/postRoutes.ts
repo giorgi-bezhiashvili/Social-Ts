@@ -12,6 +12,8 @@ import {
   unlikePost,
   deletePost,
 } from "../utils/postService";
+import { getIo } from "../utils/socket";
+
 //posting a post
 router.post(
   "/:_id/posts",
@@ -77,14 +79,15 @@ router.post(
       const notification = new Notification({
         recipient: post.author,
         sender: userId,
-        message:"liked your post",
+        message: "liked your post",
         type: "like",
         post: postId,
       });
       await notification.save();
 
       try {
-        const io = require("../utils/socket").getIo();
+
+        const io = getIo();
         io.to(String(post.author)).emit("notification", {
           recipient: String(post.author),
           sender: userId,
@@ -116,7 +119,7 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       if (
-        typeof req.params._postId !== "string" ||typeof req.params._id !== "string") {
+        typeof req.params._postId !== "string" || typeof req.params._id !== "string") {
         return res.status(400).send(`Invalid id(s)`);
       }
       const postId = req.params._postId;

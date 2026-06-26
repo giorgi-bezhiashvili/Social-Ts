@@ -3,6 +3,7 @@ import User from "../models/userSchema";
 import dotenv from "dotenv";
 import type { NextFunction, Request, Response } from "express";
 import { randomUUID } from "crypto";
+import { createClient } from "redis";
 
 dotenv.config();
 
@@ -11,12 +12,29 @@ const refreshSecret = process.env.REFRESH_TOKEN_SECRET as string;
 const issuer = process.env.TOKEN_ISSUER || "social-ts";
 const audience = process.env.TOKEN_AUDIENCE || "social-ts-client";
 
+const DEFAULT_EXPIRATION = 3600 * 24 * 7; // 7 Days
+
 if (!accessSecret || !refreshSecret) {
   throw new Error(
     "ACCESS_TOKEN_SECRET and REFRESH_TOKEN_SECRET must be defined in environment variables",
   );
 }
 
+// 1. Initialize and Connect to Redis properly
+export const redisClient = createClient();
+redisClient.on("error", (err) => console.error("Redis Client Error", err));
+
+(async () => {
+  if (!redisClient.isOpen) {
+    await redisClient.connect();
+  }
+})();
+
+export interface AuthenticatedRequest extends Request {
+  user?: any;
+}
+
+// 2. Token Generation
 export async function jwtSign(userId: string) {
   const userInstance = await User.findById(userId);
   if (!userInstance) {
@@ -29,7 +47,7 @@ export async function jwtSign(userId: string) {
     userName: userInstance.userName.toString(),
   };
 
-  // short-lived access token
+  // Short-lived access token
   const AccessToken = jsonwebtoken.sign(payLoad, accessSecret, {
     expiresIn: "15m",
     issuer,
@@ -37,7 +55,7 @@ export async function jwtSign(userId: string) {
     algorithm: "HS256",
   });
 
-  // create a refresh token with a unique identifier (jti) and store the jti server-side
+  // Create a refresh token with a unique identifier (jti)
   const refreshJti = randomUUID();
   const RefreshToken = jsonwebtoken.sign(
     { sub: userInstance._id.toString() },
@@ -51,7 +69,9 @@ export async function jwtSign(userId: string) {
     },
   );
 
-  // persist jti so we can revoke/rotate later
+  // Sync to Redis and MongoDB
+  await redisClient.setEx(`refresh_token:${refreshJti}`, DEFAULT_EXPIRATION, RefreshToken);
+
   userInstance.refreshTokens = userInstance.refreshTokens || [];
   userInstance.refreshTokens.push(refreshJti);
   await userInstance.save();
@@ -59,10 +79,7 @@ export async function jwtSign(userId: string) {
   return { AccessToken, RefreshToken };
 }
 
-export interface AuthenticatedRequest extends Request {
-  user?: any;
-}
-
+// 3. Middleware for Protected Routes
 export function authenticateToken(
   req: AuthenticatedRequest,
   res: Response,
@@ -89,6 +106,7 @@ export function authenticateToken(
   }
 }
 
+// 4. Token Verification Logic
 export async function verifyRefreshToken(token: string) {
   try {
     const decoded = jsonwebtoken.verify(token, refreshSecret, {
@@ -97,35 +115,49 @@ export async function verifyRefreshToken(token: string) {
       audience,
     }) as any;
 
-    const jti = decoded.jti || (decoded as any).jwtid;
+    const jti = decoded.jti || decoded.jwtid; 
     const sub = decoded.sub as string;
     if (!sub || !jti) throw new Error("Invalid refresh token payload");
+    
+    // Check Redis Cache first
+    const isCached = await redisClient.get(`refresh_token:${jti}`);
+    if (!isCached) {
+      throw new Error("Refresh token expired or revoked from cache");
+    }
 
+    // Fallback sync check with MongoDB
     const user = await User.findById(sub);
-    if (!user) throw new Error("User not found for refresh token");
+    
+    if (!user) throw new Error("User not found");
+    const activeTokens = user.refreshTokens || [];
 
+    if (!activeTokens.includes(jti)) {
+      user.refreshTokens = []; // Breach detected: invalidate all sessions
+      await user.save();
+      throw new Error("Token reuse detected. Revoking all user sessions.");
+    }
     if (!user.refreshTokens || !user.refreshTokens.includes(jti)) {
       throw new Error("Refresh token revoked");
     }
 
-    return { user, jti } as { user: typeof user; jti: string };
+    return { user, jti };
   } catch (err) {
     throw err;
   }
 }
 
+// 5. Refresh Token Rotation
 export async function rotateRefreshToken(oldToken: string) {
   const { user, jti: oldJti } = await verifyRefreshToken(oldToken);
 
-  // remove old jti and add new one
   const newJti = randomUUID();
 
-  // filter out old jti
+  // Remove the old tracking identifier across databases
+  await redisClient.del(`refresh_token:${oldJti}`);
   user.refreshTokens = (user.refreshTokens || []).filter((t) => t !== oldJti);
   user.refreshTokens.push(newJti);
   await user.save();
 
-  // issue new tokens
   const payLoad = {
     _id: user._id.toString(),
     email: user.email.toString(),
@@ -147,15 +179,20 @@ export async function rotateRefreshToken(oldToken: string) {
     jwtid: newJti,
   });
 
+  await redisClient.setEx(`refresh_token:${newJti}`, DEFAULT_EXPIRATION, RefreshToken);
   return { AccessToken, RefreshToken };
 }
 
+// 6. Token Revocation (Logout)
 export async function revokeRefreshToken(token: string) {
   try {
     const { user, jti } = await verifyRefreshToken(token);
+    
+    // Clear Redis cache and persist to MongoDB
+    await redisClient.del(`refresh_token:${jti}`);
     user.refreshTokens = (user.refreshTokens || []).filter((t) => t !== jti);
     await user.save();
   } catch (err) {
-    // ignore errors during revoke to avoid leaking info
+    // Ignore verification failures here to avoid leaking structure details
   }
 }

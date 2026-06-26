@@ -5,6 +5,8 @@ import User from "../models/userSchema";
 import { authenticateToken } from "../utils/jwt";
 import Post from "../models/postSchema";
 import Notification from "../models/notificationScema";
+import { getIo } from "../utils/socket";
+
 router.post("/posts/:postId/comment", authenticateToken, async (req: Request, res: Response) => {
   try {
     const postId = req.params.postId;
@@ -36,7 +38,7 @@ router.post("/posts/:postId/comment", authenticateToken, async (req: Request, re
     await notification.save();
 
     try {
-      const io = require("../utils/socket").getIo();
+      const io = getIo();
       io.to(String(post.author)).emit("notification", {
         recipient: String(post.author),
         sender: userId,

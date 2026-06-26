@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
 import type { IPost } from "./postSchema";
+
 export interface IUser extends Document {
   userName: string;
   password?: string;

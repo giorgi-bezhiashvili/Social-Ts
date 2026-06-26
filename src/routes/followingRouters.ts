@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from "express"
 const router = Router()
 import { authenticateToken } from "../utils/jwt";
 import User from "../models/userSchema"
-const io = require("../utils/socket").getIo();
+import { getIo } from "../utils/socket";
 
 router.get(`/followersCount/:_id`, authenticateToken, async (req: Request, res: Response) => {
     try {
@@ -49,6 +49,7 @@ router.post("/follow/:_id", authenticateToken, async (req: Request, res: Respons
             return res.status(400).send("You already follow this user or user does not exist");
         }
         try {
+            const io = getIo();
             io.to(String(targetUserId)).emit("notification", {
                 recipient: String(targetUserId),
                 sender: currentUserId,
