@@ -153,9 +153,17 @@ router.post("/register", limiter, async (req: Request, res: Response) => {
 router.post("/login", limiter, async (req: Request, res: Response) => {
   try {
     const { userName, password, email } = req.body;
+    console.log("LOGIN BODY:", req.body);
+    
     const user = await User.findOne({
-      $or: [{ userName: userName }, { email: email }],
-    });
+  $or: [{ userName: userName }, { email: email }],
+}).select("+password"); // add this
+    
+    console.log("USER FOUND:", user ? "yes" : "no");
+    console.log("USER PASSWORD HASH:", user?.password);
+    console.log("PASSWORD TO COMPARE:", password);
+    console.log("BCRYPT RESULT:", user ? await bcrypt.compare(password, user.password as string) : "no user");
+    
     if (!user) {
       return res.status(400).send(`Username or password is incorrect`);
     }
@@ -176,7 +184,6 @@ router.post("/login", limiter, async (req: Request, res: Response) => {
       path: "/auth",
     });
 
-    // FIXED: Return a proper JSON response so the client receives the AccessToken
     return res.status(200).json({ message: "Login successful", AccessToken });
   } catch (err) {
     console.error(err);
@@ -220,4 +227,4 @@ router.post("/auth/logout", async (req: Request, res: Response) => {
   }
 });
 
-export default router;
+export default router

@@ -21,12 +21,17 @@ const storage = multer.diskStorage({
     cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
-const upload = multer({ storage: storage });
-
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) return cb(new Error('Images only'));
+    cb(null, true);
+  }
+});
 router.post("/:id/profilePicture", authenticateToken, upload.single('profilePic'), async (req, res) => {
     try {
-        const userId = req.params.id;
-
+        const userId = req.user?._id
         if (!req.file) {
             console.log("❌ Multer did not receive a valid binary file stream! req.body is:", req.body);
             return res.status(400).json({ 

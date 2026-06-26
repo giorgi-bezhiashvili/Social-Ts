@@ -68,12 +68,12 @@ router.post(
     try {
       if (
         typeof req.params._postId !== "string" ||
-        typeof req.params._id !== "string"
+        typeof req.user?._id !== "string"
       ) {
         return res.status(400).send(`Invalid id(s)`);
       }
       const postId = req.params._postId;
-      const userId = req.params._id;
+      const userId =req.user?._id
 
       const post = await likePost(postId, userId);
       const notification = new Notification({
@@ -119,11 +119,11 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       if (
-        typeof req.params._postId !== "string" || typeof req.params._id !== "string") {
+        typeof req.params._postId !== "string" || typeof req.user?._id !== "string") {
         return res.status(400).send(`Invalid id(s)`);
       }
       const postId = req.params._postId;
-      const userId = req.params._id;
+      const userId = req.user?._id
 
       const post = await unlikePost(postId, userId);
       return res.status(200).json(post);
@@ -143,10 +143,10 @@ router.post(
 //delete a post
 router.delete("/:_id/posts/:postId", authenticateToken, async (req: Request, res: Response) => {
   try {
-    if (typeof req.params._id !== "string" || typeof req.params.postId !== "string") {
+    if (typeof req.user?._id !== "string" || typeof req.params.postId !== "string") {
       return res.status(400).send(`Invalid id(s)`);
     }
-    const userId = req.params._id;
+    const userId = req.user?._id
     const postId = req.params.postId;
 
     await deletePost(postId, userId)

@@ -26,7 +26,7 @@ router.post("/follow/:_id", authenticateToken, async (req: Request, res: Respons
         const targetUser = await User.findOneAndUpdate(
             {
                 _id: targetUserId,
-                followers: { $ne: currentUserId }
+                followersCount: { $ne: currentUserId }
             } as any,
             {
                 $addToSet: { followers: currentUserId },
@@ -41,7 +41,7 @@ router.post("/follow/:_id", authenticateToken, async (req: Request, res: Respons
             } as any,
             {
                 $addToSet: { following: targetUserId },
-                $inc: { following: 1 }
+                $inc: { followingCount: 1 }
             }
         )
 
@@ -65,7 +65,7 @@ router.post("/follow/:_id", authenticateToken, async (req: Request, res: Respons
         res.status(500).send(`Error`)
     }
 })
-router.delete("/unfollow/:id", authenticateToken, async (req: Request, res: Response) => {
+router.delete("/unfollow/:_id", authenticateToken, async (req: Request, res: Response) => {
     try {
         const targetUserId = req.params._id;
         const currentUserId = req.user?._id;

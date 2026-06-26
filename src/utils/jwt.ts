@@ -114,7 +114,7 @@ export async function verifyRefreshToken(token: string) {
       issuer,
       audience,
     }) as any;
-
+    
     const jti = decoded.jti || decoded.jwtid; 
     const sub = decoded.sub as string;
     if (!sub || !jti) throw new Error("Invalid refresh token payload");
@@ -136,9 +136,7 @@ export async function verifyRefreshToken(token: string) {
       await user.save();
       throw new Error("Token reuse detected. Revoking all user sessions.");
     }
-    if (!user.refreshTokens || !user.refreshTokens.includes(jti)) {
-      throw new Error("Refresh token revoked");
-    }
+
 
     return { user, jti };
   } catch (err) {

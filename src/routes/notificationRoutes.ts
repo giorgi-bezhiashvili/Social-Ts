@@ -19,3 +19,4 @@ router.get("/notifications", authenticateToken, async (req: Request, res: Respon
   } catch (err) {
     return res.status(500).json({ message: "Server error", error: err });
   }})
+  export default router

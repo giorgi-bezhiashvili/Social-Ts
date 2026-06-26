@@ -12,7 +12,7 @@ const notificationSchema = new Schema<INotification>({
   sender: { type: Schema.Types.ObjectId, ref: "User", required: true },
   type: { type: String, required: true },
   post: { type: Schema.Types.ObjectId, ref: "Post" },
-  comment: { type: Schema.Types.ObjectId, ref: "Comment" },
+  comment: { type: Schema.Types.ObjectId },
   createdAt: { type: Date, default: Date.now }
 });
 const Notification = mongoose.model<INotification>("Notification", notificationSchema);

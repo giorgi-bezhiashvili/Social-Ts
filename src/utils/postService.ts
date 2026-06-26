@@ -9,23 +9,19 @@ type PostPayload = {
 
 export async function addPost(userId: string, payload: PostPayload) {
   const { title, description, pictures } = payload;
-  const post = new Post({ title, description, pictures, author: userId });
-  await post.save();
 
-  const user = await User.findByIdAndUpdate(userId, {
-    $push: { posts: post._id },
-  });
-
+  const user = await User.findById(userId); // ✅ check user exists first
   if (!user) {
-    await Post.findByIdAndDelete(post._id);
     const err: any = new Error("User not found");
     err.code = "USER_NOT_FOUND";
     throw err;
   }
 
+  const post = new Post({ title, description, pictures, author: userId });
+  await post.save();
+
   return post;
 }
-
 export async function getUserPosts(userId: string) {
   const user = await User.findById(userId).populate("posts");
   if (!user) {
