@@ -53,7 +53,7 @@ A social media REST API built from scratch with **TypeScript**, **Express**, and
 | Language       | TypeScript                          |
 | Runtime        | Node.js                             |
 | Framework      | Express 5                           |
-| Database       | MongoDB + Mongoose                  |
+| Database       | MongoDB + Mongoose + Redis          |
 | Auth           | JWT (`jsonwebtoken`), Passport (Google OAuth2), bcrypt |
 | Real-time      | Socket.io                           |
 | File uploads   | Multer                              |
