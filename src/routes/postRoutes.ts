@@ -13,12 +13,14 @@ import {
   deletePost,
   countScore
 } from "../utils/postService";
+import{postJoiSchema} from "../utils/validation"
 import { getIo } from "../utils/socket";
-
+import { validateBody } from "./authRoutes";
 //posting a post
 router.post(
   "/:_id/posts",
   authenticateToken,
+  validateBody(postJoiSchema),
   async (req: Request, res: Response) => {
     try {
       if (typeof req.params._id !== "string") {

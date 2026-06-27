@@ -1,6 +1,7 @@
 import "dotenv/config";
 import path from "path";
 import express from "express";
+const app = express();
 import mongoose from "mongoose";
 import http from "http";
 import authRouter from "./routes/authRoutes";
@@ -10,11 +11,10 @@ import commentRouter from "./routes/commentRoutes";
 import followingRouter from "./routes/followingRouters";
 import NotificationRouter from "./routes/notificationRoutes";
 import helmet from "helmet";
-import { xss } from "express-xss-sanitizer";
 import cookieParser from "cookie-parser";
 import { initSocket } from "./utils/socket";
-
-const app = express();
+import mongoSanitize from "mongo-sanitize"
+import {xss} from "express-xss-sanitizer"
 const PORT = Number(process.env.PORT ?? 3000);
 const MONGO_URI = process.env.MONGO_URI as string
 
@@ -23,11 +23,17 @@ if (!MONGO_URI) {
 }
 
 app.use(express.json());
+app.use((req, res, next) => {
+  if (req.body && typeof req.body === 'object') mongoSanitize(req.body);
+  if (req.query && typeof req.query === 'object') mongoSanitize(req.query);
+  if (req.params && typeof req.params === 'object') mongoSanitize(req.params);
+  next();
+})
+app.use(xss());
 app.use(cookieParser());
 app.use(helmet());
 app.use(helmet.contentSecurityPolicy({ directives: { defaultSrc: ["'self'"] } }));
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
-app.post("/register-test", (req, res) => res.json({ ok: true }));
 
 app.use(authRouter);
 app.use(postRouter);

@@ -9,7 +9,8 @@ import type { Profile } from "passport";
 import type { VerifyCallback } from "passport-google-oauth2";
 import { jwtSign, rotateRefreshToken, revokeRefreshToken } from "../utils/jwt";
 import { rateLimit } from 'express-rate-limit';
-
+import joi from "joi"
+import {registerJoiSchema,loginJoiSchema} from "../utils/validation"
 dotenv.config();
 
 const limiter = rateLimit({
@@ -19,6 +20,21 @@ const limiter = rateLimit({
   legacyHeaders: false, 
   ipv6Subnet: 56, 
 });
+export const validateBody = (schema: joi.ObjectSchema) => {
+  return (req: Request, res: Response, next: any) => {
+    const { error, value } = schema.validate(req.body, { abortEarly: false });
+    
+    if (error) {
+      return res.status(400).json({ 
+        message: "Validation failed", 
+        details: error.details.map(err => err.message) 
+      });
+    }
+    
+    req.body = value; 
+    next();
+  };
+};
 
 const router = Router();
 
@@ -63,7 +79,6 @@ passport.use(
   ),
 );
 
-// Note: passport.serializeUser was removed because session: false is used below.
 
 router.get(
   "/auth/google",
@@ -98,7 +113,6 @@ router.get(
         path: "/auth",
       });
 
-      // FIXED: Sending access token back via JSON response (standard for SPA architecture)
       return res.status(200).json({ AccessToken });
     } catch (err) {
       console.error(err);
@@ -108,13 +122,12 @@ router.get(
 );
 
 router.get("/", (req: Request, res: Response) => {
-  // FIXED: Changed https to http to match your development local port
   res.send(
     `<a href="http://localhost:3000/auth/google">Authenticate with Google</a>`,
   );
 });
 
-router.post("/register", limiter, async (req: Request, res: Response) => {
+router.post("/register", limiter,validateBody(registerJoiSchema),async (req: Request, res: Response) => {
   try {
     const { userName, password, email } = req.body;
     if (!userName || !password || !email) {
@@ -126,7 +139,7 @@ router.post("/register", limiter, async (req: Request, res: Response) => {
     if (user) {
       return res.status(400).send(`User already exists`);
     }
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword= await bcrypt.hash(password, 10);
     const newUser = {
       userName,
       password: hashedPassword,
@@ -150,7 +163,7 @@ router.post("/register", limiter, async (req: Request, res: Response) => {
   }
 });
 
-router.post("/login", limiter, async (req: Request, res: Response) => {
+router.post("/login", limiter, validateBody(loginJoiSchema),async (req: Request, res: Response) => {
   try {
     const { userName, password, email } = req.body;
     
