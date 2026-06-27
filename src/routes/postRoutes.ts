@@ -11,6 +11,7 @@ import {
   likePost,
   unlikePost,
   deletePost,
+  countScore
 } from "../utils/postService";
 import { getIo } from "../utils/socket";
 
@@ -51,11 +52,13 @@ router.get("/:_id/posts", async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Server error", err });
   }
 });
-//getting all posts
+//getting posts on feed
 router.get("/posts", async (req: Request, res: Response) => {
   try {
-    const posts = await listPosts();
-    res.status(200).send(posts);
+    const posts = await Post.find()
+      .sort({ score: -1 }) 
+      .limit(120);
+    return res.status(200).json(posts);
   } catch (err) {
     return res.status(500).json({ message: "Server error", err });
   }
@@ -84,7 +87,7 @@ router.post(
         post: postId,
       });
       await notification.save();
-
+      countScore(postId)
       try {
 
         const io = getIo();
@@ -126,6 +129,8 @@ router.post(
       const userId = req.user?._id
 
       const post = await unlikePost(postId, userId);
+      countScore(postId)
+
       return res.status(200).json(post);
     } catch (err) {
       if ((err as any)?.code === "NOT_LIKED") {

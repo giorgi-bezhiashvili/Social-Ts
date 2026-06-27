@@ -132,7 +132,7 @@ export async function verifyRefreshToken(token: string) {
     const activeTokens = user.refreshTokens || [];
 
     if (!activeTokens.includes(jti)) {
-      user.refreshTokens = []; // Breach detected: invalidate all sessions
+      user.refreshTokens = [];
       await user.save();
       throw new Error("Token reuse detected. Revoking all user sessions.");
     }

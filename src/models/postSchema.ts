@@ -12,6 +12,8 @@ export interface IPost extends Document {
   comments: IComment[];
   likes: number;
   author: mongoose.Types.ObjectId;
+  score:number;
+  commentsCount:Number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,6 +24,8 @@ export const postSchema = new Schema<IPost>({
   pictures: [{ type: String }],
   likes: { type: Number, default: 0 },
   author: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  score:{type:Number,default:0},
+  commentsCount:{type:Number,default:0},
   comments: [
     {
       content: { type: String, required: true },

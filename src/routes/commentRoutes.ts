@@ -6,10 +6,10 @@ import { authenticateToken } from "../utils/jwt";
 import Post from "../models/postSchema";
 import Notification from "../models/notificationScema";
 import { getIo } from "../utils/socket";
-
+import { countScore } from "../utils/postService";
 router.post("/posts/:postId/comment", authenticateToken, async (req: Request, res: Response) => {
   try {
-    const postId = req.params.postId;
+    const postId = req.params.postId as string;
     const content = req.body.content;
     const userId = req.user?._id;
 
@@ -20,10 +20,15 @@ router.post("/posts/:postId/comment", authenticateToken, async (req: Request, re
     if (!content) {
       return res.status(400).json({ message: "Comment content is required" });
     }
+    const score = await countScore(postId)
     const post = await Post.findByIdAndUpdate(
-      postId, 
-      { $push: { comments: { content, userId } } }, 
-      {returnDocument: 'after'}
+      postId,
+      {
+        $push: { comments: { content, userId } },
+        $inc: { commentsCount: 1 },
+        score
+      },
+      { returnDocument: 'after' }
     );
     if (!post) {
       return res.status(404).json({ message: "Post not found" });

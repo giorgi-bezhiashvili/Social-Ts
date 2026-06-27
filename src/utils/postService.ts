@@ -6,6 +6,11 @@ type PostPayload = {
   description?: string;
   pictures?: string[];
 };
+type numbers = {
+  likes:number,
+  commentsCount:number,
+  uptimeInHours:number,
+}
 
 export async function addPost(userId: string, payload: PostPayload) {
   const { title, description, pictures } = payload;
@@ -105,3 +110,30 @@ export async function deletePost(postId: string, userId: string) {
   }
   return post;
 }
+export async function countScore(postId: string) {
+  try {
+    const post = await Post.findById(postId).populate('commentsCount');
+    
+    if (!post) {
+      throw new Error('პოსტი ვერ მოიძებნა');
+    }
+
+    const createdTime = new Date(post.createdAt).getTime();
+    const currentTime = new Date().getTime();
+    const differenceInMilliseconds = currentTime - createdTime;
+    
+   
+    const uptimeInHours = Math.max(differenceInMilliseconds / (1000 * 60 * 60), 1);
+
+    const likesCount = (post.likes as number) || 0;
+    const commentsCount = (post.commentsCount as number) || 0;
+
+    const score = (commentsCount * 2 + likesCount) / uptimeInHours;
+
+    return score;
+  } catch (error) {
+    console.error("შეცდომა:", error);
+    throw error;
+  }
+}
+

@@ -153,11 +153,10 @@ router.post("/register", limiter, async (req: Request, res: Response) => {
 router.post("/login", limiter, async (req: Request, res: Response) => {
   try {
     const { userName, password, email } = req.body;
-    console.log("LOGIN BODY:", req.body);
     
     const user = await User.findOne({
   $or: [{ userName: userName }, { email: email }],
-}).select("+password"); // add this
+}).select("+password");
     
     console.log("USER FOUND:", user ? "yes" : "no");
     console.log("USER PASSWORD HASH:", user?.password);
