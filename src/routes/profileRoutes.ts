@@ -1,21 +1,21 @@
-import express , { Router, type Request, type Response } from "express";
+import express, { Router, type Request, type Response } from "express";
 const router = Router();
 import multer from "multer";
 import { authenticateToken } from "../utils/jwt";
 import User from "../models/userSchema";
-import path from  "path"
+import path from "path";
 import { promises as fs } from "fs";
 import sharp from "sharp";
 import { validateBody } from "./authRoutes";
-import {commentAndDescriptionJoiSchema} from "../utils/validation"
+import { commentAndDescriptionJoiSchema } from "../utils/validation";
 import * as tf from "@tensorflow/tfjs";
 import * as nsfwjs from "nsfwjs";
-import type { any } from "joi";
 
 let nsfwModel: Awaited<ReturnType<typeof nsfwjs.load>> | null = null;
 
 async function loadNsfwModel() {
     if (!nsfwModel) {
+        // ტვირთავს ნაგულისხმევ მოდელს (MobileNetV2), რომელიც ითხოვს 224x224 RGB-ს
         nsfwModel = await nsfwjs.load();
         console.log("✅ NSFW Filter Model loaded successfully.");
     }
@@ -27,7 +27,6 @@ loadNsfwModel().catch(err => console.error("Failed to load NSFW model:", err));
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
     const uploadDir = 'uploads/';
-    
     try {
       await fs.access(uploadDir).catch(async () => {
         await fs.mkdir(uploadDir, { recursive: true });
@@ -51,6 +50,7 @@ const upload = multer({
     cb(null, true);
   }
 });
+
 async function safeUnlink(filePath: string) {
     try {
         await fs.unlink(filePath);
@@ -58,6 +58,7 @@ async function safeUnlink(filePath: string) {
         console.log(`Note: File at ${filePath} could not be deleted or doesn't exist.`);
     }
 }
+
 router.post("/:id/profilePicture", authenticateToken, upload.single('profilePic'), async (req, res) => {
     try {
         const userId = req.user?._id;
@@ -78,20 +79,24 @@ router.post("/:id/profilePicture", authenticateToken, upload.single('profilePic'
         const targetFullPath = path.join(import.meta.dirname, "..", "..", profilePicturePath);
 
         try {
-            const resizedImageBuffer = await sharp(tempPath)
-                .resize(100, 100, { fit: 'cover' })
-                .jpeg({ quality: 80 })
+            // 1. მოდელისთვის ვამზადებთ სურათს ზუსტად 224x224 ზომაში და სუფთა RGB (3 არხი) ფორმატში
+            const rawPixelBuffer = await sharp(tempPath)
+                .resize(224, 224, { fit: 'cover' })
+                .removeAlpha() // მკაცრად აშორებს გამჭვირვალობის არხს (RGBA -> RGB)
+                .raw()
                 .toBuffer();
 
+            // 2. NSFW შემოწმება ხელოვნური ინტელექტით
             const model = await loadNsfwModel();
             
+            // იქმნება ტენზორი ზუსტი პარამეტრებით [224, 224, 3] = 150,528 ბაიტი
             const imageTensor = tf.tensor3d(
-                new Uint8Array(resizedImageBuffer), 
-                [100, 100, 3]
+                new Uint8Array(rawPixelBuffer), 
+                [224, 224, 3]
             );
             
             const predictions = await model.classify(imageTensor);
-            imageTensor.dispose(); 
+            imageTensor.dispose(); // მეხსიერების გასუფთავება
 
             const pornPrediction = predictions.find((p: any) => p.className === 'Porn');
             const hentaiPrediction = predictions.find((p: any) => p.className === 'Hentai');
@@ -108,7 +113,12 @@ router.post("/:id/profilePicture", authenticateToken, upload.single('profilePic'
                 });
             }
 
-            await fs.writeFile(targetFullPath, resizedImageBuffer);
+            // 3. თუ სურათი უსაფრთხოა, ახლა ვქმნით მომხმარებლის პროფილისთვის სასურველ 100x100 JPEG ვერსიას
+            await sharp(tempPath)
+                .resize(100, 100, { fit: 'cover' })
+                .jpeg({ quality: 80 })
+                .toFile(targetFullPath);
+
             await safeUnlink(tempPath);
 
         } catch (err) {
@@ -145,36 +155,24 @@ router.post("/:id/profilePicture", authenticateToken, upload.single('profilePic'
 router.get("/:id", async (req, res) => {
     try {
         const userId = req.params.id;
-
-        const user = await User.findById(userId).select(
-            "userName email profilePicture description posts",
-        );
-
-        if (!user) {
-            return res.status(404).send("User doesn't exist");
-        }
-
+        const user = await User.findById(userId).select("userName email profilePicture description posts");
+        if (!user) return res.status(404).send("User doesn't exist");
         res.status(200).json(user);
     } catch (err: any) {
         return res.status(500).send("Internal server error: " + err.message);
     }
 });
-router.post("/:id/description", authenticateToken,validateBody(commentAndDescriptionJoiSchema), async (req: Request, res: Response) => {
+
+router.post("/:id/description", authenticateToken, validateBody(commentAndDescriptionJoiSchema), async (req: Request, res: Response) => {
     try {
         const userId = req.user?._id;
         const { content } = req.body;
-
-        const user = await User.findByIdAndUpdate(
-            userId,
-            {description : content},
-            { returnDocument: 'after' }
-        );
-        if (!user) {
-            return res.status(404).send("User doesn't exist");
-        }
+        const user = await User.findByIdAndUpdate(userId, { description: content }, { returnDocument: 'after' });
+        if (!user) return res.status(404).send("User doesn't exist");
         res.status(200).json(user);
     } catch (err: any) {
         return res.status(500).send("Internal server error: " + err.message);
     }
 });
-export default router
+
+export default router;
