@@ -21,6 +21,20 @@ const MONGO_URI = process.env.MONGO_URI as string
 if (!MONGO_URI) {
   throw new Error("MONGO_URI is required");
 }
+const rejectXml = (req, res, next) => {
+  const contentType = req.headers['content-type'];
+
+  if (contentType && contentType.includes('xml')) {
+    return res.status(415).json({ 
+      error: 'Unsupported Media Type', 
+      message: 'XML payloads are not accepted.' 
+    });
+  }
+
+  next();
+};
+
+app.use(rejectXml);
 
 app.use(express.json());
 app.use((req, res, next) => {
