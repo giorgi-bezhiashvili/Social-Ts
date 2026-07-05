@@ -1,6 +1,6 @@
 import "dotenv/config";
 import path from "path";
-import express, { Request, Response, NextFunction } from 'express';
+import express, {type Request,type Response,type NextFunction } from 'express';
 const app = express();
 import mongoose from "mongoose";
 import http from "http";
@@ -34,7 +34,6 @@ const rejectXml = (req: Request, res: Response, next: NextFunction): void | Resp
   next();
 };
 
-// Apply globally
 app.use(rejectXml);
 
 app.use(express.json());
