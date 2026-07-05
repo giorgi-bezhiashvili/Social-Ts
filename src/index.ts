@@ -1,6 +1,6 @@
 import "dotenv/config";
 import path from "path";
-import express from "express";
+import express, { Request, Response, NextFunction } from 'express';
 const app = express();
 import mongoose from "mongoose";
 import http from "http";
@@ -21,19 +21,20 @@ const MONGO_URI = process.env.MONGO_URI as string
 if (!MONGO_URI) {
   throw new Error("MONGO_URI is required");
 }
-const rejectXml = (req, res, next) => {
+const rejectXml = (req: Request, res: Response, next: NextFunction): void | Response => {
   const contentType = req.headers['content-type'];
 
   if (contentType && contentType.includes('xml')) {
-    return res.status(415).json({ 
-      error: 'Unsupported Media Type', 
-      message: 'XML payloads are not accepted.' 
+    return res.status(415).json({
+      error: 'Unsupported Media Type',
+      message: 'XML payloads are not accepted.'
     });
   }
 
   next();
 };
 
+// Apply globally
 app.use(rejectXml);
 
 app.use(express.json());
