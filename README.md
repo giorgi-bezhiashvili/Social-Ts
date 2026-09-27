@@ -2,7 +2,7 @@
 
 A social media REST API built from scratch with **TypeScript**, **Express**, and **MongoDB** — featuring JWT authentication with refresh token rotation, Google OAuth, real-time notifications, and a follow/post/comment system.
 
-> 🚧 **Status: Work in progress.** Core features are functional; the follow system and test coverage are still being hardened.
+
 
 ---
 
